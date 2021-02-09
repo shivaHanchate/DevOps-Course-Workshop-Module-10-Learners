@@ -18,7 +18,7 @@ That means it shouldn't be possible to access the api without a valid authentica
 ### 1.1: Setup the web API
 This repository contains code for a simple .NET Core web API. 
 It exposes one GET endpoint, WeatherForecast, which will return a randomly generated weather forecast for the next five days.
-As you'll be building on this code, it's recommended that you [fork](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the repository like you did for workshop 7 and 8.
+As you'll be building on this code, it's recommended that you [fork](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo) the repository like you did for workshops 7 and 8.
 
 You don't need to worry too much about what the code is doing for now, however you should be able to build and run the app.
 
@@ -48,12 +48,72 @@ However those guides can be a bit confusing, as you only need to follow some of 
 ### 1.4: Add authentication to a web API
 Now we need to add some code to our API so that it will only allow requests with the correct authentication.
 
-There are a few changes we need to make:
-1. Add the Azure AD config from the app registration to the app. See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-configuration#config-file) for what the format of the config should be. In particular you need the Directory (tenant) ID and the Application (client) ID for your app registration. You can find that on the overview page for your app registration in the Azure portal. This should be added to the `appsettings.json` file.
+**Add the Azure AD config from the app registration to the app.**
 
-2. Configure the app to use authentication. These changes need to be made in `Startup.cs`. You need to update the `ConfigureService` method so that it sets up the authentication using the config values from appsettings.json (passed in through the IConfiguration object). You also need to update the `Configure` method so that it adds authentication and authorization to the app. See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-configuration#starting-from-an-existing-aspnet-core-31-application) for details.
+This should be provided in the `appsettings.json` file. Update this file to include the following information:
+```json
+{
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "Domain": "DOMAIN",
+    "ClientId": "CLIENT_ID",
+    "TenantId": "TENANT_ID"
+  },
+  ...
+}
+```
+You can find the domain, client id and tenant id on the overview page for your app registration in the Azure portal. See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-configuration#config-file) for more details.
 
-3. Add authentication to the `WeatherForecast` endpoint. See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-verification-scope-app-roles#verify-app-roles-in-apis-called-by-daemon-apps) for details. We want to make sure our controller is protected with the `Authorize` attribute, this will ensure it's not possible to hit the endpoint without a valid token. And we want to verify that the token is for `access_as_application`, meaning that access has been granted to an application rather than a signed in user.
+**Configure the app to use authentication.**
+These changes need to be made in `Startup.cs`. You need to update the `ConfigureService` method to include the following:
+```csharp
+public void ConfigureServices(IServiceCollection services)
+{
+    services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApi(Configuration.GetSection("AzureAd"));
+    services.AddAuthorization(config =>
+    {
+        config.AddPolicy(
+            "ApplicationPolicy",
+            policy => policy.RequireClaim("roles", "access_as_application")
+        );
+    });
+    JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
+
+    ...
+}
+```
+This sets up the authentication using the config values from appsettings.json (passed in through the IConfiguration object).
+
+You also need to update the `Configure` method so that it adds authentication and authorization to the app:
+```csharp
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+{
+    ...
+
+    app.UseRouting();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+    
+    ...
+}
+```
+
+See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-configuration#starting-from-an-existing-aspnet-core-31-application) for more details.
+
+**Add authentication to the `WeatherForecast` endpoint.**
+You can do this by using the `Authorize` attribute on the class:
+```csharp
+[Authorize(Policy = "ApplicationPolicy")]
+[ApiController]
+[Route("[controller]")]
+public class WeatherForecastController : ControllerBase
+```
+
+The name of the policy (`"ApplicationPolicy"` in this case) can be whatever you want but it needs to match the name of the policy you define in the `ConfigureServices` method. Adding the `Authorize` header with that policy will ensure that only a request with a valid token which is for `access_as_application` will be able to hit the endpoint.
+
+See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-verification-scope-app-roles#verify-app-roles-in-apis-called-by-daemon-apps) for more details.
 
 The API should now be protected. If you try to hit the endpoint again through Swagger UI, you should get a 401 error response. This means that the request has been rejected because you didn't provide the correct authentication.
 
