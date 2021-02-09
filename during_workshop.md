@@ -85,3 +85,12 @@ Bearer eyJ0eXAiOiJKV1QiLCJ...
 ```
 
 After you've entered the token click "Authorize".  This should close the popup and the "Authorize" button should now have a closed padlock icon on it. When you now send a request through Swagger it should include the token and the request should be accepted.
+
+### 2.4: Write a script to send a requst to the web API
+
+Instead of having to manually get a token and add it to the request, write a python script to do it for you. The script should:
+1. Send a POST request to get a token to access the web API, as you did manually in step 2.2.
+2. Use the token to send a GET request to the web API.
+3. Print the response from the web API.
+
+NB you might see an error "certificate verify failed" when making the request to the web API from your script. Running `dotnet dev-certs https --trust` in the terminal should fix this, as it should make your machine trust the dev certificates the web API is using. However it doesn't always work and you might not be able to run the command if you don't have admin rights. Another way to fix it is by turning off certificate verification for the request, e.g. by passing in `verify=False` to the `requests.get` method. We wouldn't do this on a deployed app but in this case we'll only be running the script locally.
