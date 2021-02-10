@@ -8,7 +8,7 @@ Also make sure you have installed the following:
 - [Visual Studio Code](https://code.visualstudio.com/download)
     - Make sure you have the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp)
 - [Git](https://git-scm.com/)
-- [.NET Core 3.1](https://dotnet.microsoft.com/download)
+- [.NET 5](https://dotnet.microsoft.com/download)
 
 ## Part 1 - Protected web api
 
