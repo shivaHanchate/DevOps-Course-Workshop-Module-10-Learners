@@ -10,7 +10,7 @@ Also make sure you have installed the following:
 - [Git](https://git-scm.com/)
 - [.NET 5](https://dotnet.microsoft.com/download)
 
-## Part 1 - Protected web api
+## Part 1 - Protected web API
 
 We want to create a web api which is protected by [Azure Active Directory authentication](https://docs.microsoft.com/en-us/azure/active-directory/authentication/overview-authentication#:~:text=One%20of%20the%20main%20features,of%20a%20username%20and%20password.). 
 That means it shouldn't be possible to access the api without a valid authentication token. We'll use Azure services to generate and verify the token.
@@ -75,7 +75,7 @@ public void ConfigureServices(IServiceCollection services)
     {
         config.AddPolicy(
             "ApplicationPolicy",
-            policy => policy.RequireClaim("roles", "access_as_application")
+            policy => policy.RequireClaim(ClaimConstants.Roles, "access_as_application")
         );
     });
     JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
@@ -154,3 +154,112 @@ Instead of having to manually get a token and add it to the request, write a pyt
 3. Print the response from the web API.
 
 NB you might see an error "certificate verify failed" when making the request to the web API from your script. Running `dotnet dev-certs https --trust` in the terminal should fix this, as it should make your machine trust the dev certificates the web API is using. However it doesn't always work and you might not be able to run the command if you don't have admin rights. Another way to fix it is by turning off certificate verification for the request, e.g. by passing in `verify=False` to the `requests.get` method. We wouldn't do this on a deployed app but in this case we'll only be running the script locally.
+
+## Part 3 - Webpage accessing a protected API
+
+We now want to build a simple webpage to show the weather forecast from our API. This webpage should:
+1. Prompt the user to log in to their Microsoft account, if they haven't signed in already
+2. Get an access token for the web API on behalf of the user
+3. Get a weather forecast from the API and display it to the user
+
+You can build this webpage using whatever language and tech stack you want. One option is to use typescript + express.
+
+### 3.1: Create an app registration for the webpage
+
+To enable login and access to the API we need to create yet another app registration in the Azure portal. To do this follow the instructions [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-spa-app-registration), choosing "Redirect URI: MSAL.js 2.0 with auth code flow".
+
+Once you've created the app registration and set the redirect, you need to give it permission to access the API. You can do this in the same way as for the app registration used in the python script, with a few differences:
+1. Go to API permissions -> add permission -> my APIs -> select the app registration for your API
+2. Select *"delegated permissions"* instead of "application" which you selected last time. This is because the webpage be accessing the API on behalf of a user, instead of as a daemon application.
+3. Make sure you grant admin access like you did for the app registration used in the python script.
+
+### 3.2: Create a web app
+
+Now create a simple web app. It should only expose one url, e.g. http://localhost:3000. For now you can display whatever you want on that page, for example "Hello, world".
+
+### 3.3: Generate a verifier and code challenge
+
+To do the login step you need a verifier. The verifier is a 43 character string. You'll encode this string and send it along with the login request. After the login request succeeds you make another request to get a token. When you make this request you send the verifier again, but this time not encoded. The auth service will then decode the encoded verifier you sent with the first request and check that it matches the one you sent to get the token. If they don't match then the request to get the token will fail.
+
+This verifier can be any 43 character string. It's good practice to make it a random string but you could also hardcode it.
+
+Once you've got a verifier you need to encode it so that it can be used in the login request as the code challenge parameter. You should encode it using SHA256. You'll probably need a library to do this, [here](https://gist.github.com/jo/8619441) is a list of good libraries to use with javascript/typescript. The resulting encrypted string should also be 43 characters long.
+
+Generating a random string, making sure the length is correct both before and after encrypting, can be a bit tricky. A good way to do it is:
+1. Create a helper method which will convert bytes to a base 64 string, remove base 64 padding and url encode it. For example in javascript using `crypto-js` this would be:
+```
+function base64UrlEncode(bytes: crypto.lib.WordArray): string {
+    return bytes.toString(crypto.enc.Base64)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+```
+2. Generate 32 random bytes. For example by using `crypto.lib.WordArray.random(32)` with `crypto-js`.
+3. Convert the bytes to a string using your helper method. The resulting string is your verifier.
+4. To generate the code challenge first encrypt the verifier using SHA256. For example by using `crypto.SHA256(verifier)` with `crypto-js`.
+5. Then convert the resulting bytes to a string using your helper method again. The resulting string is your code challenge.
+
+### 3.4: Add login to your webpage
+
+You're now ready to add login to your webpage. This should work by using some query parameters, `code` and `state`. When the webpage is first loaded it will redirect to a login url. Once login has succeeded the auth service will redirect back to your webpage but with the query parameters `code` and `state` set. So you can check whether those query parameters are present to determine whether or not the user has been logged in.
+
+1. Create some string to use as your state. This can be any string. You could generate a random string as for the verifier, but this time the length isn't important. 
+2. When loading your page check if the url include the query parameters `code` and `state`, and whether the `state` parameter equals the state string you generated. If those checks succeed then show a success message.
+3. If the url didn't include those query parameters then you need to redirect to login. 
+
+You can redirect to login by sending a GET request to the url described in the "Request an authorization code" section of [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code). Out of these parameters:
+* `tenant` is the tenand id you've already used. This can be found in the overview page for any of your app registrations in the Azure portal.
+* `client_id` is the client id for the app registration you created in step 3.1.
+* `response_type` should be `code`.
+* `redirect_uri` should be the url for your webpage, e.g. http://localhost:3000.
+* `scope` should be the same scope you used in the python script, except with `access_as_user` at the end instead of `.default`.
+* `response_mode` should be `query`, indicating that we're expecting query parameters to be set once login has completed.
+* `state` should be the `state` string you created.
+* `prompt` can be left out.
+* `login_hint` can be left out.
+* `domain_hint` can be left out.
+* `code_challenge` should be set to the code challenge you generated in step 3.3.
+* `code_challenge_method` should be set to `S256`.
+
+### 3.5: Request a token once login succeeds
+
+To be able to access the weather forecast API you need to get an access token. So instead of showing a success message if login succeeds, make a POST request to get an access token and display the token on the page.
+
+See the "Request an access token" section of [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-access-token) for details of the url to send the POST request to and the format of the request body. 
+
+In particular:
+* The headers of the request need to have `Content-Type` set to `application/x-www-form-urlencoded` and `Origin` set to the url of your webpage (e.g. http://localhost:3000).
+* The body of the request needs to be a url encoded string, formatted like a list of query parameters. For example `client_id=CLIENT_ID&scope=ENCODED_API_SCOPE&code=CODE&redirect_uri=ENCODED_REDIRECT_URL&grant_type=authorization_code&code_verifier=VERIFIER`.
+* The client id, scope, redirect uri and verifier are the same as in the login url.
+* The code should be the value of the `code` query parameter, set when login succeeds.
+
+### 3.6: Update the web API to allow access by user
+
+Currently our web API is configured to only allow access with a token generated for an application. However we'll be generating a token for a user. Therefore we need to slightly tweak the authorization we've added to the web API. 
+
+In particular change the policy to:
+```
+config.AddPolicy(
+    "UserPolicy",
+    policy => policy.RequireClaim(ClaimConstants.Scp, "access_as_user")
+);
+```
+
+And update the policy name the `WeatherForecastController` uses:
+```
+[Authorize(Policy = "UserPolicy")]
+[ApiController]
+[Route("[controller]")]
+public class WeatherForecastController : ControllerBase
+```
+
+If you want to still be able to access the API from your script you can add a new policy instead of changing the existing one (so add the `config.AddPolicy` statement above but also keep the existing `config.AddPolicy` statement). Then you can just change which policy the `WeatherForecastController` uses if you want to access it from your script or from swagger. 
+
+You could also change the policy so it will allow access by an application and by a user. The syntax for this is a bit more complicated as you need to check that the token either has a scope claim set to "access_as_user" or a roles claim set to "access_as_application". To do that you need to use `policy.RequireAssertion` instead of `policy.RequireClaim`, see [this doc](https://docs.microsoft.com/en-us/aspnet/core/security/authorization/policies?view=aspnetcore-5.0#use-a-func-to-fulfill-a-policy) for more details.
+
+### 3.7: Get a weather forecast from the API
+
+Now you should be able to make a request to the API from your webpage. So instead of displaying the token once login has succeeded, use the token to make a GET request to the WeatherForecast API endpoint. This will be similar to what you did in the python script. You might run into SSL certificate verification issues again, in which case remember to turn off SSL certificate verification for that request.
+
+Then display the weather forecast to the user.
