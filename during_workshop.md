@@ -26,7 +26,7 @@ You don't need to worry too much about what the code is doing for now, however y
 2. Run `dotnet run` from the terminal in the project folder.
 3. Go to https://localhost:5001/swagger/index.html in the browser. This loads a [Swagger UI](https://swagger.io/tools/swagger-ui/) page.  Swagger UI is a useful tool to test API endpoints. To test this API click the "/WeatherForecast" row then "Try it out" then "Execute". You should then be able to see the response from the endpoint.
 
-![Swagger UI](img/SwaggerUI.png)
+![Swagger UI](img/SwaggerUI.PNG)
 
 ### 1.2: Create Azure AD Tenant
 The first step is to create an Azure AD Tenant. A tenant in this case is an instance of Azure Active Directory.
