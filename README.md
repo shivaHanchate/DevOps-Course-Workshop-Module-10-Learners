@@ -15,4 +15,4 @@ Also make sure you have installed the following:
 - [Git](https://git-scm.com/)
 - [.NET 5](https://dotnet.microsoft.com/download)
 
-> While part of this workshop involves C# knowledge of C# is not a prerequisite of this workshop.
+> While part of this workshop involves C#, knowledge of C# is not a prerequisite of this workshop.
