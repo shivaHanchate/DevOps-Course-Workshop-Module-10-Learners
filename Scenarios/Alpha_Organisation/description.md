@@ -6,7 +6,7 @@ They've hired you to perform a security audit of their system. They want to know
 
 ## Users
 
-Alpha's systems have many different users. In addition to **staff** they work with **supporters**, **contributors** and external **collaborators**. Each group uses slightly different use cases.
+Alpha's systems have many different users. In addition to **staff** they work with **supporters**, **contributors**, and external **collaborators**. Each group uses slightly different use cases.
 
 ### Supporters & Contributors
 

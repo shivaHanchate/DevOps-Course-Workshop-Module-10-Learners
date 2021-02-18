@@ -151,7 +151,7 @@ Bearer eyJ0eXAiOiJKV1QiLCJ...
 
 After you've entered the token click "Authorize". This should close the popup and the "Authorize" button should now have a closed padlock icon on it. When you now send a request through Swagger it should include the token and the request should be accepted.
 
-### 2.4: Write a script to send a requst to the web API
+### 2.4: Write a script to send a request to the web API
 
 Instead of having to manually get a token and add it to the request, write a python script to do it for you. The script should:
 

@@ -7,7 +7,7 @@ Used by **supporters** and **staff** to arrange events and collect donations. It
 Key activities it supports:
 
 - Maintains a list of supporters contact details & volunteer history
-- Processes one of donations to the organisation
+- Processes one off donations to the organisation
 - Maintains details of all events.
 
 Reports on donations are kept on the server and a finance assistant downloads a report once a week for reconciliation.
