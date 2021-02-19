@@ -27,6 +27,11 @@ The first step is to create an Azure AD Tenant. A tenant in this case is an inst
 
 Follow [these instructions](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant#create-a-new-azure-ad-tenant) to create a tenant to use. In particular you want to create a new Azure AD Tenant, you don't want to use an existing one.
 
+*Note* - Make sure you have switched to the new tenant afterwards. You can do that by:
+* Clicking your name in the top right corner
+* 'Switch directory'
+* Selecting your new tenant's directory
+
 ### 1.3: Create an app registration for a protected web API
 
 The next step is to create an app registration for the web API we're going to use. We need to do this so that we can verify the authentication token sent to our API is valid. To do this we register our application with our tenant as a protected web api.
@@ -64,7 +69,7 @@ This should be provided in the `appsettings.json` file. Update this file to incl
 You can find the domain, client id and tenant id on the overview page for your app registration in the Azure portal. See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-configuration#config-file) for more details.
 
 **Configure the app to use authentication.**
-These changes need to be made in `Startup.cs`. You need to update the `ConfigureService` method to include the following:
+These changes need to be made in `Startup.cs`. You need to update the `ConfigureService` method to include the following (note: your role name may be 'DaemonAppRole' rather than 'access_as_application' depending on the guide you followed):
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
@@ -82,6 +87,13 @@ public void ConfigureServices(IServiceCollection services)
 
     ...
 }
+```
+
+You will also need to import the relevant libraries, by adding to the top of your `Startup.cs` file:
+```csharp
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Identity.Web;
+using System.IdentityModel.Tokens.Jwt;
 ```
 
 This sets up the authentication using the config values from appsettings.json (passed in through the IConfiguration object).
@@ -114,6 +126,11 @@ You can do this by using the `Authorize` attribute on the class:
 public class WeatherForecastController : ControllerBase
 ```
 
+Again, you may need to import the corresponding library:
+```csharp
+using Microsoft.AspNetCore.Authorization;
+```
+
 The name of the policy (`"ApplicationPolicy"` in this case) can be whatever you want but it needs to match the name of the policy you define in the `ConfigureServices` method. Adding the `Authorize` header with that policy will ensure that only a request with a valid token which is for `access_as_application` will be able to hit the endpoint.
 
 See [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-verification-scope-app-roles#verify-app-roles-in-apis-called-by-daemon-apps) for more details.
@@ -134,7 +151,7 @@ You should now be able to request a token to access the API. You can do this by 
 
 - The tenant id should be from the tenant you created in part 1. You can find this on the overview page for either of the app registrations you've created.
 - The client id should be the client id for the app registration you created in step 2.1.
-- The scope should be the application ID URI from the first app registration you created in step 1.3 followed by ".default" and it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` would be the correct scope for application ID URI api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6. You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
+- The scope should be the application ID URI from the first app registration you created in step 1.3 followed by "/.default" and it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` would be the correct scope for application ID URI api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6. You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
 - The client secret should be the one you created in step 2.1.
 
 Once you get a successful response copy the access token from it. You're going to use this in the request to your web API.
@@ -161,7 +178,7 @@ Instead of having to manually get a token and add it to the request, write a pyt
 
 NB you might see an error "certificate verify failed" when making the request to the web API from your script. Running `dotnet dev-certs https --trust` in the terminal should fix this, as it should make your machine trust the dev certificates the web API is using. However it doesn't always work and you might not be able to run the command if you don't have admin rights. Another way to fix it is by turning off certificate verification for the request, e.g. by passing in `verify=False` to the `requests.get` method. We wouldn't do this on a deployed app but in this case we'll only be running the script locally.
 
-## Part 3 - Webpage accessing a protected API
+## (Stretch Goal) Part 3 - Webpage accessing a protected API
 
 We now want to build a simple webpage to show the weather forecast from our API. This webpage should:
 
@@ -169,7 +186,7 @@ We now want to build a simple webpage to show the weather forecast from our API.
 2. Get an access token for the web API on behalf of the user
 3. Get a weather forecast from the API and display it to the user
 
-You can build this webpage using whatever language and tech stack you want. One option is to use typescript + express.
+You can build this webpage using whatever language and tech stack you want. Two options would be to use python + flask, or typescript + express.
 
 ### 3.1: Create an app registration for the webpage
 
@@ -177,9 +194,10 @@ To enable login and access to the API we need to create yet another app registra
 
 Once you've created the app registration and set the redirect, you need to give it permission to access the API. You can do this in the same way as for the app registration used in the python script, with a few differences:
 
-1. Go to API permissions -> add permission -> my APIs -> select the app registration for your API
-2. Select _"delegated permissions"_ instead of "application" which you selected last time. This is because the webpage be accessing the API on behalf of a user, instead of as a daemon application.
-3. Make sure you grant admin access like you did for the app registration used in the python script.
+1. On your original app, go to "Expose an API" and add a scope, named "access_as_user"
+2. On your webpage app registration, go to API permissions -> add permission -> my APIs -> select the app registration for your API
+3. Select _"delegated permissions"_ instead of "application" which you selected last time. This is because the webpage be accessing the API on behalf of a user, instead of as a daemon application.
+4. Make sure you grant admin access like you did for the app registration used in the python script.
 
 ### 3.2: Create a web app
 
@@ -191,9 +209,21 @@ To do the login step you need a verifier. The verifier is a 43 character string.
 
 This verifier can be any 43 character string. It's good practice to make it a random string but you could also hardcode it.
 
-Once you've got a verifier you need to encode it so that it can be used in the login request as the code challenge parameter. You should encode it using SHA256. You'll probably need a library to do this, [here](https://gist.github.com/jo/8619441) is a list of good libraries to use with javascript/typescript. The resulting encrypted string should also be 43 characters long.
+Once you've got a verifier you need to encode it so that it can be used in the login request as the code challenge parameter. You should encode it using SHA256. You'll probably need a library to do this, [here](https://gist.github.com/jo/8619441) is a list of good libraries to use with javascript/typescript, for python you can use the [hashlib module](https://docs.python.org/3/library/hashlib.html) which is part of the standard library. The resulting encrypted string should also be 43 characters long.
 
-Generating a random string, making sure the length is correct both before and after encrypting, can be a bit tricky. A good way to do it is:
+Generating a random string, making sure the length is correct both before and after encrypting, can be a bit tricky.
+
+A good way to do this in Python is:
+
+1. Generate a string from a random 32 bytes, e.g. by using `secrets.token_urlsafe(32)` with the `secrets` module
+2. To generate the challenge, we first hash those bytes using the `hashlib.sha256` function - note that you will need to encode the verifier string first
+3. And then base64 encode the hash, decode it and remove any padding (any `=`)
+```python
+challenge_bytes = base64.urlsafe_b64encode(sha.digest())
+challenge_string = challenge_bytes.decode('utf-8').replace('=', '')
+```
+
+Or alternatively for javascript/typescript:
 
 1. Create a helper method which will convert bytes to a base 64 string, remove base 64 padding and url encode it. For example in javascript using `crypto-js` this would be:
 
