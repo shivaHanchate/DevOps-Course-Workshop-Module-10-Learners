@@ -56,3 +56,9 @@ Run the following docker command
 ```
 
 Visit `localhost` on your machine, click to `Create / Reset database` and authenticate with `Username: admin` and `Password: password`.
+
+## Part 4 XSS Training (Optional)
+
+XSS bugs are extremely common. Google have developed a game that helps demonstrate how some of these work.
+
+You can find the game [here](https://xss-game.appspot.com/) and work through it.
