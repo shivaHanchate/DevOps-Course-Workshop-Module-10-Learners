@@ -154,7 +154,8 @@ In particular:
 
 - The tenant id should be from the tenant you created in part 1. You can find this on the overview page for either of the app registrations you've created.
 - The client id should be the client id for the app registration you created in step 2.1.
-- The scope should be the application ID URI from the first app registration you created in step 1.3 followed by "/.default" and it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` would be the correct scope for application ID URI api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6. You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
+- The scope should be the application ID URI from the first app registration you created in step 1.3 followed by "/.default"
+    - Note that *if you are not using Postman* it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` would be the correct scope for application ID URI api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6. You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
 - The client secret should be the one you created in step 2.1.
 
 Once you get a successful response copy the access token from it. You're going to use this in the request to your web API.
