@@ -43,13 +43,7 @@ Finally, work through the prioritised list of threats and suggest ways to mitiga
 
 This part of the workshop is in covered in [Part 2](./part_2.md).
 
-## Part 3 XSS Training (Optional)
-
-XSS bugs are extremely common. Google have developed a game that helps demonstrate how some of these work.
-
-You can find the game [here](https://xss-game.appspot.com/) and work through it.
-
-## Part 4 Vulnerable Docker Box (Optional)
+## Part 3 Vulnerable Docker Box (Optional)
 
 A more varied option is the Damn Vulnerable Web Application. It is a deliberately vulnerable web application to let you safely and _legally_ explore breaking into a system. To make it easy to run locally there is a docker container provided - quick start instructions below. It is largely self-explanatory but for more detailed instructions go to [README.md](https://github.com/opsxcq/docker-vulnerable-dvwa/blob/master/README.md).
 
@@ -61,4 +55,10 @@ Run the following docker command
     docker run --rm -it -p 80:80 vulnerables/web-dvwa
 ```
 
-Visit `localhost` on your machine and authenticate with `Username: admin` and `Password: password`.
+Visit `localhost` on your machine, click to `Create / Reset database` and authenticate with `Username: admin` and `Password: password`.
+
+## Part 4 XSS Training (Optional)
+
+XSS bugs are extremely common. Google have developed a game that helps demonstrate how some of these work.
+
+You can find the game [here](https://xss-game.appspot.com/) and work through it.
