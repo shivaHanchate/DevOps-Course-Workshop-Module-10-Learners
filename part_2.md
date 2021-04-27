@@ -4,10 +4,10 @@ If you haven't completed the prerequisites in the [README](./README.md) do so no
 
 ## Part 1 - Protected web API
 
-We want to create a web api which is protected by [Azure Active Directory authentication](https://docs.microsoft.com/en-us/azure/active-directory/authentication/overview-authentication#:~:text=One%20of%20the%20main%20features,of%20a%20username%20and%20password.).
-That means it shouldn't be possible to access the api without a valid authentication token. We'll use Azure services to generate and verify the token.
+We want to create a web API which is protected by [Azure Active Directory authentication](https://docs.microsoft.com/en-us/azure/active-directory/authentication/overview-authentication#:~:text=One%20of%20the%20main%20features,of%20a%20username%20and%20password.).
+That means it shouldn't be possible to access the api without a valid authentication token. We'll use Azure services to generate and verify the token. Speciically, we will be using the OAuth2 "client credentials" flow, useful for server-to-server interaction.
 
-### 1.1: Setup the web API
+### 1.1: Set up the web API
 
 This repository contains code for a simple .NET Core web API.
 It exposes one GET endpoint, WeatherForecast, which will return a randomly generated weather forecast for the next five days.
@@ -15,8 +15,8 @@ As you'll be building on this code, it's recommended that you [fork](https://doc
 
 You don't need to worry too much about what the code is doing for now, however you should be able to build and run the app.
 
-1. Run `dotnet build` from the terminal in the project folder.
-2. Run `dotnet run` from the terminal in the project folder.
+1. Run `dotnet build` from the terminal in the WeatherForecast folder.
+2. Run `dotnet run` from the terminal in the WeatherForecast folder.
 3. Go to https://localhost:5001/swagger/index.html in the browser. This loads a [Swagger UI](https://swagger.io/tools/swagger-ui/) page. Swagger UI is a useful tool to test API endpoints. To test this API click the "/WeatherForecast" row then "Try it out" then "Execute". You should then be able to see the response from the endpoint.
 
 ![Swagger UI](WeatherForecast/img/SwaggerUI.PNG)
@@ -25,7 +25,7 @@ You don't need to worry too much about what the code is doing for now, however y
 
 The first step is to create an Azure AD Tenant. A tenant in this case is an instance of Azure Active Directory.
 
-Follow [these instructions](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant#create-a-new-azure-ad-tenant) to create a tenant to use. In particular you want to create a new Azure AD Tenant, you don't want to use an existing one.
+Follow [these instructions](https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/active-directory-access-create-new-tenant) to create a new Azure AD Tenant to use.
 
 *Note* - Make sure you have switched to the new tenant afterwards. You can do that by:
 * Clicking your name in the top right corner
@@ -34,7 +34,7 @@ Follow [these instructions](https://docs.microsoft.com/en-us/azure/active-direct
 
 ### 1.3: Create an app registration for a protected web API
 
-The next step is to create an app registration for the web API we're going to use. We need to do this so that we can verify the authentication token sent to our API is valid. To do this we register our application with our tenant as a protected web api.
+The next step is to create an app registration for the web API we're going to use. We need to do this so that we can verify the authentication token sent to our API is valid. To do this we register our application with our tenant as a protected web API.
 
 In particular we want to configure it so that the data provided by the API can be consumed by another app securely using tokens, without needing a user to log in first.
 
@@ -89,24 +89,32 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-You will also need to import the relevant libraries. VSCode will fix this for you automatically if you click on the missing import (highlighted in red) and then press Ctrl/Cmd + FullStop. Note that if you turn on the 'Enable Import Completion' setting on (File -> Preferences -> Settings -> Extensions -> C# -> Omnisharp: Enable Import Completion) then these imports will be added automatically when selecting a completion option.
+You will also need to import the relevant libraries. VSCode can fix this for you automatically if you click on the missing import (highlighted in red) and then press Ctrl/Cmd + FullStop.
+
+If you are having issues with Omnisharp's autoimport, you can manually add the imports to the top of the file:
+
+```csharp
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Identity.Web;
+```
 
 ![Auto Import](WeatherForecast/img/AutoImport.PNG)
 
 This sets up the authentication using the config values from appsettings.json (passed in through the IConfiguration object).
 
-You also need to update the `Configure` method so that it adds authentication and authorization to the app:
+You also need to update the `Configure` method so that it adds authentication and authorization to the app, between the existing `app.UseRouting` and `app.UseEndpoints` lines:
 
 ```csharp
 public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 {
     ...
-
     app.UseRouting();
 
     app.UseAuthentication();
     app.UseAuthorization();
 
+    app.UseEndpoints(endpoints =>
     ...
 }
 ```
@@ -133,10 +141,10 @@ You'll see in the next part how we can add a valid authentication token to the r
 
 ### 2.1: Create an app registration for a client accessing the web API
 
-To generate a valid token we first need to create a second app registration in the Azure portal. This is to register the application which will be requesting access to the API. 
+You are now going to register a second application - a consumer of the protected API - that will access it by generating an access token. You will play the part of the second application by making HTTP requests yourself. To register it, create a second "app registration" in the Azure portal:
 
 Create a new app registration called `WeatherAppConsumer` (feel free to name it something else if you prefer!).
-* Once created, add a new **client secret** from the **Certificates & secrets**
+* Once created, add a new **client secret** from the **Certificates & secrets**. Make a note of the secret's value - you will not be able to access this through the portal later.
 
 Next you'll need to grant API permission for the new application to access the first app registration you created.
 * Select **API permissions** => **Add a permission** => **My APIs** then click on your app and the role you created earlier (`WeatherApplicationRole`) 
@@ -154,9 +162,10 @@ In particular:
 
 - The tenant id should be from the tenant you created in part 1. You can find this on the overview page for either of the app registrations you've created.
 - The client id should be the client id for the app registration you created in step 2.1.
-- The scope should be the application ID URI from the first app registration you created in step 1.3 followed by "/.default"
-    - Note that *if you are not using Postman* it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` would be the correct scope for application ID URI api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6. You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
-- The client secret should be the one you created in step 2.1.
+- The client secret should be the one you created in step 2.1, to prove that it is the application making this request.
+- The scope should be the application ID URI from the first app registration you created in step 1.3 followed by "/.default". For example `api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6/.default`.
+    - You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
+    - Note that if you are *NOT* using Postman, it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` 
 
 Once you get a successful response copy the access token from it. You're going to use this in the request to your web API.
 
@@ -197,6 +206,8 @@ We now want to build a simple webpage to show the weather forecast from our API.
 1. Prompt the user to log in to their Microsoft account, if they haven't signed in already
 2. Get an access token for the web API on behalf of the user
 3. Get a weather forecast from the API and display it to the user
+
+This is the OAuth2 "authorization code" flow.
 
 You can build this webpage using whatever language and tech stack you want. Two options would be to use python + flask, or typescript + express.
 
@@ -263,7 +274,7 @@ You're now ready to add login to your webpage. This should work by using some qu
 
 You can redirect to login by sending a GET request to the url described in the "Request an authorization code" section of [this guide](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code). Out of these parameters:
 
-- `tenant` is the tenand id you've already used. This can be found in the overview page for any of your app registrations in the Azure portal.
+- `tenant` is the tenant id you've already used. This can be found in the overview page for any of your app registrations in the Azure portal.
 - `client_id` is the client id for the app registration you created in step 3.1.
 - `response_type` should be `code`.
 - `redirect_uri` should be the url for your webpage, e.g. http://localhost:3000.
