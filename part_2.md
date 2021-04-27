@@ -165,7 +165,7 @@ In particular:
 - The client secret should be the one you created in step 2.1, to prove that it is the application making this request.
 - The scope should be the application ID URI from the first app registration you created in step 1.3 followed by "/.default". For example `api://40ae91b7-0c83-4b5c-90f3-40187e8f2cb6/.default`.
     - You can find the application ID URI by going to the "Expose an API" section for your first app registration in the Azure portal.
-    - Note that if you are *NOT* using Postman, it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F/.default` 
+    - Note that if you are *NOT* using Postman, it needs to be URI encoded. For example `api%3A%2F%2F40ae91b7-0c83-4b5c-90f3-40187e8f2cb6%2F.default` 
 
 Once you get a successful response copy the access token from it. You're going to use this in the request to your web API.
 
