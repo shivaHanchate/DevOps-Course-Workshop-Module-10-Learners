@@ -226,7 +226,7 @@ Once you've created the app registration and set the redirect, you need to give 
 
 Now create a simple web app. It should only expose one url, e.g. http://localhost:3000. For now you can display whatever you want on that page, for example "Hello, world".
 
-### 3.3: Generate a verifier and code challenge
+### 3.3: Generate a verifier and code challenge test change
 
 To do the login step you need a verifier. The verifier is a 43 character string. You'll encode this string and send it along with the login request. After the login request succeeds you make another request to get a token. When you make this request you send the verifier again, but this time not encoded. The auth service will then decode the encoded verifier you sent with the first request and check that it matches the one you sent to get the token. If they don't match then the request to get the token will fail.
 
